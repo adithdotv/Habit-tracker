@@ -1,35 +1,35 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+import { fetchHabits, createHabit, toggleHabit } from "./api";
+import HabitForm from "./HabitForm";
+import HabitList from "./HabitList";
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [habits, setHabits] = useState([]);
+
+  useEffect(() => {
+    loadHabits();
+  }, []);
+
+  const loadHabits = async () => {
+    const res = await fetchHabits();
+    setHabits(res.data);
+  };
+
+  const addHabit = async (name) => {
+    await createHabit(name);
+    loadHabits();
+  };
+
+  const toggle = async (id) => {
+    await toggleHabit(id);
+    loadHabits();
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div style={{ padding: "20px" }}>
+      <h1>Habit Tracker</h1>
+      <HabitForm onAdd={addHabit} />
+      <HabitList habits={habits} onToggle={toggle} />
+    </div>
+  );
 }
-
-export default App
