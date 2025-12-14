@@ -1,58 +1,77 @@
 const express = require("express");
 const cors = require("cors");
+const pool = require("./db");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-let habits = [];
-let habitLogs = [];
-
-// Utility
 const today = () => new Date().toISOString().split("T")[0];
 
+/* ---------------- HABITS ---------------- */
+
 // Create habit
-app.post("/habits", (req, res) => {
-  const habit = {
-    id: Date.now(),
-    name: req.body.name,
-    createdAt: today()
-  };
-  habits.push(habit);
-  res.status(201).json(habit);
+app.post("/habits", async (req, res) => {
+  const { name } = req.body;
+
+  const result = await pool.query(
+    "INSERT INTO habits (name, created_at) VALUES ($1, $2) RETURNING *",
+    [name, today()]
+  );
+
+  res.status(201).json(result.rows[0]);
 });
 
-// Get all habits with today status + analytics
-app.get("/habits", (req, res) => {
-  const result = habits.map(habit => {
-    const logs = habitLogs.filter(l => l.habitId === habit.id);
-    const todayLog = logs.find(l => l.date === today());
+// Get all habits with analytics
+app.get("/habits", async (req, res) => {
+  const habitsResult = await pool.query("SELECT * FROM habits");
 
-    return {
+  const habits = [];
+
+  for (let habit of habitsResult.rows) {
+    const logsResult = await pool.query(
+      "SELECT * FROM habit_logs WHERE habit_id = $1",
+      [habit.id]
+    );
+
+    const logs = logsResult.rows;
+
+    habits.push({
       ...habit,
-      completedToday: todayLog?.completed || false,
+      completedToday: logs.some(
+        l => l.log_date === today() && l.completed
+      ),
       streak: calculateStreak(logs),
       consistency: calculateConsistency(logs)
-    };
-  });
-  res.json(result);
+    });
+  }
+
+  res.json(habits);
 });
 
 // Toggle today completion
-app.post("/habits/:id/toggle", (req, res) => {
+app.post("/habits/:id/toggle", async (req, res) => {
   const habitId = Number(req.params.id);
-  let log = habitLogs.find(
-    l => l.habitId === habitId && l.date === today()
+
+  const existing = await pool.query(
+    "SELECT * FROM habit_logs WHERE habit_id=$1 AND log_date=$2",
+    [habitId, today()]
   );
 
-  if (!log) {
-    log = { habitId, date: today(), completed: true };
-    habitLogs.push(log);
+  if (existing.rows.length === 0) {
+    const result = await pool.query(
+      "INSERT INTO habit_logs (habit_id, log_date, completed) VALUES ($1, $2, true) RETURNING *",
+      [habitId, today()]
+    );
+    return res.json(result.rows[0]);
   } else {
-    log.completed = !log.completed;
+    const current = existing.rows[0];
+    const result = await pool.query(
+      "UPDATE habit_logs SET completed=$1 WHERE id=$2 RETURNING *",
+      [!current.completed, current.id]
+    );
+    return res.json(result.rows[0]);
   }
-
-  res.json(log);
 });
 
 /* -------- Analytics Functions -------- */
@@ -60,20 +79,18 @@ app.post("/habits/:id/toggle", (req, res) => {
 function calculateStreak(logs) {
   const completedDates = logs
     .filter(l => l.completed)
-    .map(l => l.date)
+    .map(l => l.log_date)
     .sort()
     .reverse();
 
   let streak = 0;
-  let currentDate = today();
+  let current = today();
 
   for (let d of completedDates) {
-    if (d === currentDate) {
+    if (d === current) {
       streak++;
-      currentDate = previousDate(currentDate);
-    } else {
-      break;
-    }
+      current = previousDate(current);
+    } else break;
   }
   return streak;
 }
