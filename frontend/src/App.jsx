@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchHabits, createHabit, toggleHabit } from "./api";
+import { fetchHabits, createHabit, toggleToday } from "./api";
 import HabitForm from "./HabitForm";
 import HabitList from "./HabitList";
 
@@ -21,7 +21,7 @@ export default function App() {
   };
 
   const toggle = async (id) => {
-    await toggleHabit(id);
+    await toggleToday(id);
     loadHabits();
   };
 

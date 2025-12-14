@@ -6,4 +6,5 @@ const API = axios.create({
 
 export const fetchHabits = () => API.get("/habits");
 export const createHabit = (name) => API.post("/habits", { name });
-export const toggleHabit = (id) => API.put(`/habits/${id}`);
+export const toggleToday = (id) =>
+  API.post(`/habits/${id}/toggle`);

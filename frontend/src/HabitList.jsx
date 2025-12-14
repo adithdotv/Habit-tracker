@@ -5,10 +5,13 @@ export default function HabitList({ habits, onToggle }) {
         <li key={h.id}>
           <input
             type="checkbox"
-            checked={h.completed}
+            checked={h.completedToday}
             onChange={() => onToggle(h.id)}
           />
-          {h.name}
+          <strong>{h.name}</strong>
+          <div>
+            🔥 Streak: {h.streak} days | 📊 Consistency: {h.consistency}%
+          </div>
         </li>
       ))}
     </ul>
